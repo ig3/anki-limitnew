@@ -31,7 +31,7 @@ progressing more slowly.
 
 ## Configuration
 
-There are two configuration parameters: workloadLimit and sensitivity.
+There are two configuration parameters: workloadLimit and workloadMax.
 
 To change the configuration, start Anki and open Tools -> Add-ons, select
 the limitnew addong and click Configure. Set values for the two parameters,
@@ -39,38 +39,25 @@ then click OK.
 
 ### workloadLimit - default 200
 
+The workloadLimit is the workload beyond which the new card limit will
+be reduced.
+
 Workload is the sum of total cards studied on the day across all decks,
 plus the numbers of review and learning cards remaining for the current deck.
 
-These numbers will change as you progress through your study for the day.
-The total cards studied will increase and the number of review and learning
-cards remaining will decrease, until there are none left to study.
-
-The limit of new cards will be reduced when workload exceeds the
-workloadLimit.
-
-Recommendation: Set your workloadLimit to the number of cards you can study
+Recommendation: Set workloadLimit to the number of cards you can study
 in a couple of hours, or however much time you have available to study each
 day. If you need only a few seconds per card, you might set your limit to
 2,000 or higher. If you spend more like 30 seconds per card, then you might
 set your limit to about 200.
 
-### sensitivity - default 1.0
+### workloadMax - default 250
 
-The sensitivity determines how quickly the new card limit is reduced when the
-workload exceeds the workloadLimit.
+The workloadMax is the workload beyond which the new card limit will be
+reduced to 0. If workloadMax is greater than workloadLimit then the new
+card limit will be gradually reduced as workload increases from
+workloadLimit to workloadMax.
 
-If sensitivity is 1.0, the new card limit will be reduced to 0 when the
-workload exceeds the workloadLimit by 100%. If your workloadLimit is 200,
-then the new card limit will not be reduced to 0 until your workload
-reaches 400.
-
-If sensitivity is 10.0, the new card limit will be reduced to 0 when the
-workload exceeds the workloadLimit by 10%. If your workloadLimit is 200,
-then the new card limit will be reduced to 0 when your workload reaches
-220.
-
-Recommendation: Set sensitivity to 1.0 if you want the number of new cards
-to be reduced gradually and you don't mind your workload going up to double
-your workloadLimit if your learning is slow. Set sensitivity to 10.0 or
-higher if you want your workload to be kept closer to your workloadLimit.
+Recommendation: Set workloadMax to the workload beyond which you don't want
+to see any new cards. If you want your new cards to be all-or-nothing, set
+workloadMax to the same valueas WorkloadLimit.

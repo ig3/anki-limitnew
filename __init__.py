@@ -2,38 +2,18 @@
 # days "workload", which is the number of cards studied plus the
 # nubers or new and review cards scheduled for the day.
 #
-# The number of cards studied is the total for the day, across all
-# decks, and is a metric approximating total workload for the day.
-#
-# The numbers of review and learning cards scheduled for the day
-# is a metric approximating potential workload for the day. Each
-# deck has its own scheduled review and learning cards.
-#
-# This add-on does not add per-deck configuration, but maybe it should.
-# Currently, it has one set of configuration parameters for all decks.
-#
-# For a given deck, the total "workload" is the number of cards studied
-# in the day + numbers of review and learning cards scheduled for the day,
-# for that deck. This is compared to the workloadLimit configuration parameter.
-#
-# If the workload is more than the workloadLimit, then the new card limit is
-# reduced and this reduced new card limit is applied to the deck. The
-# sensitivity configuration parameter determines how aggressively the new
-# card limit is reduced.
+# It only works with the V2 scheduler.
 #
 import itertools
 from aqt import mw
 from anki.schedv2 import Scheduler as SchedulerV2
+from anki.utils import ids2str
 
 config = mw.addonManager.getConfig(__name__)
-
-#print("workloadLimit = ", config['workloadLimit'])
-#print("sensitivity = ", config['sensitivity'])
 
 def updateConfig(newConfig):
     global config
     config = newConfig
-#    print("updateConfig: ", config)
 
 mw.addonManager.setConfigUpdatedAction(__name__,updateConfig)
 
@@ -108,69 +88,55 @@ SchedulerV2._groupChildrenMain = myGroupChildrenMain
 # deck and/or its children. But this would require a more significant
 # revision of the scheduler.
 
-# This returns the limit on new cards for the current deck now,
-# considering the new cards that have been viewed today. This is not
-# the same as the deck new card per day limit.
+# This returns the limit on new cards for the current deck,
+# considering the new cards that have been viewed today.
+# This is not the same as the deck new card per day limit.
 #
 def myDeckNewLimitSingle(self, g):
-    limit = origDeckNewLimitSingle(self, g)
-    print("myDeckNewLimitSingle", limit)
-
-    print("g = ", g)
     if g['dyn']:
         return self.dynReportLimit
 
-    # Get the number of cards to be reviewed today in current deck
-    childMap = self.col.decks.childMap()
-    rlim = self._deckRevLimitSingle(g)
-    rev = self._revForDeck(g['id'], rlim, childMap)
-    print("rev = ", rev)
-
-    # Get the number or cards to be learned today in current deck
-    lrn = self._lrnForDeck(g['id'])
-    print("lrn = ", lrn)
+    # Get the total number of cards due today
+    due = self.col.db.scalar(
+        """
+select count() from (select 1 from cards where did in %s
+and (queue = 1 or ( queue = 2 and due <= ?)))"""
+        % ids2str(self.col.decks.allIds()),
+        self.today
+    )
 
     # Get total cards studied today
-    cards, thetime = self.col.db.first("""
+    studied, thetime = self.col.db.first("""
 select count(), sum(time)/1000 from revlog
 where id > ?""", (self.col.sched.dayCutoff-86400)*1000)
-    cards = cards or 0
+    studied = studied or 0
     thetime = thetime or 0
-    print("Studied ", cards, " cards in ", thetime, "seconds")
 
-
-    # The total workload is total cards studied today (all decks)
-    # plus the number scheduled for the current deck
-    workload = cards + rev + lrn
-    print("workload: ", workload)
+    workload = studied + due
 
     workloadLimit = config['workloadLimit']
+    workloadMax = config['workloadMax']
+    scale = workloadMax - workloadLimit
 
-    print("workloadLimit: ", config['workloadLimit'])
     excess = max(0, workload - workloadLimit)
-    print("excess: ", excess)
 
     # Get the configured perDay limit for this deck
     c = self.col.decks.confForDid(g['id'])
     perDay = c['new']['perDay']
     print("perDay = ", perDay)
 
-    if excess > 0:
-        print("sensitivity: ", config['sensitivity'])
-        sensitivity = config['sensitivity']
-        perDay = max(
-            0,
-            int(perDay * (1 - excess / workloadLimit * sensitivity))
-        )
-    print("adjusted perDay = ", perDay)
+    # Scale perDay according to workload excess
+    if scale > 0:
+        perDay = max(0, int(perDay * (1 - excess / scale)))
+    elif excess > 0:
+        perDay = 0
 
     # The limit is the lower of the limit calculated here
     # and the limit from the default _deckNewLimitSingle function
     # and the number of new cards already studied today is subtracted
     # to give the current limit on additional new cards today (not
     # the total for the day)
-    limit = max(0, min(perDay, limit) - g["newToday"][1])
-    print("limit = ", g['name'], limit)
+    limit = max(0, perDay - g["newToday"][1])
 
     return limit
     
