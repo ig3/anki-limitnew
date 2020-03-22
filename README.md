@@ -10,17 +10,8 @@ Too many new cards causes overload. The number of cards to be studied each
 day increases until it is impossible to study all cards on time. This
 defeats the spaced repition schedule and learning becomes less effective.
 
-Manually adjusting the new card limit can avoid such overload, but new
-cards are provided at a fixed rate, regardless of how learning is
-progressing.
-
-This addon adjusts the number of new cards based on how many cards you have
-to study each day - the total workload. When the workload is low, new cards
-are presented, up to the deck's limit of new cards per day. But when the
-workload is higher, the number of new cards is reduced. If the workload is
-very high, no new cards are presented. This allows you to progress quickly
-when you are learning quickly but automatically slow down if you are
-progressing more slowly.
+This addon limits the number of new cards when the number of cards due plus
+card reviews exceeds the configured limit.
 
 ## Installation
 
