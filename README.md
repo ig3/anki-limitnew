@@ -20,6 +20,8 @@ card reviews exceeds the configured limit.
 * Drag the downloaded .ankiaddon file onto the add-ons list
 * Restart Anki
 
+GitHub: https://github.com/ig3/anki-limitnew
+
 ## Configuration
 
 There are two configuration parameters: workloadLimit and workloadMax.
