@@ -9,6 +9,12 @@ from aqt import mw
 from anki.schedv2 import Scheduler as SchedulerV2
 from anki.utils import ids2str
 
+# For new deck options
+from anki.hooks import wrap
+from aqt.qt import *
+from aqt.deckconf import DeckConf
+from aqt.forms import dconf
+
 config = mw.addonManager.getConfig(__name__)
 
 def updateConfig(newConfig):
@@ -60,12 +66,63 @@ def myGroupChildrenMain(self, grps):
         tree.append((head, did, rev, lrn, new, children))
     return tuple(tree)
 
-origDeckNewLimitSingle = SchedulerV2._groupChildrenMain
+origGroupChildrenMain = SchedulerV2._groupChildrenMain
 SchedulerV2._groupChildrenMain = myGroupChildrenMain
 
 
+# Returns the new card limit for deck g
+# based on workload for all decks in deckIds
+def newCardLimit(self, g, decks, workloadLimit, workloadMax):
+    # print("newCardLimit for ", g['name'], decks, workloadLimit, workloadMax)
 
-# Wrap _deckNewLimitSingle
+    due = self.col.db.scalar(
+        """
+select count() from (select 1 from cards where did in %s
+and (queue = 1 or ( queue = 2 and due <= ?)))"""
+        % ids2str(decks),
+        self.today
+    )
+    # print("due ", due);
+
+    # Get total cards studied today
+    studied, time = self.col.db.first("""
+select count(), sum(time)/1000 from revlog
+where
+  id > ? and
+  cid in (select id from cards where did in %s)""" % ids2str(decks),
+    (self.col.sched.dayCutoff-86400)*1000)
+
+    studied = studied or 0
+    time = time or 0
+
+    # print("studied ", studied)
+
+    workload = studied + due
+    # print("workload ", workload)
+
+    scale = workloadMax - workloadLimit
+    # print("scale ", scale)
+
+    excess = max(0, workload - workloadLimit)
+    # print("excess ", excess)
+
+    # Get the configured perDay limit for this deck
+    c = self.col.decks.confForDid(g['id'])
+    perDay = c['new']['perDay']
+    # print("perDay = ", perDay)
+
+    # Scale perDay according to workload excess
+    if scale > 0:
+        perDay = max(0, int(perDay * (1 - excess / scale)))
+    elif excess > 0:
+        perDay = 0
+
+    # Finally, subtract from perDay the number of new cards already
+    # studied today, to get the current limit on additional new cards
+    limit = max(0, perDay - g["newToday"][1])
+
+    return limit
+
 
 # In a deck (e.g. g)
 #  newToday is a list: [ days_since_deck_creation, new_cards_today ]
@@ -90,56 +147,114 @@ SchedulerV2._groupChildrenMain = myGroupChildrenMain
 
 # This returns the limit on new cards for the current deck,
 # considering the new cards that have been viewed today.
+#
 # This is not the same as the deck new card per day limit.
+# The new card per day limit is a fixed number. This limit
+# decreases as the number of cards studied increases.
 #
 def myDeckNewLimitSingle(self, g):
     if g['dyn']:
         return self.dynReportLimit
 
-    # Get the total number of cards due today
-    due = self.col.db.scalar(
-        """
-select count() from (select 1 from cards where did in %s
-and (queue = 1 or ( queue = 2 and due <= ?)))"""
-        % ids2str(self.col.decks.allIds()),
-        self.today
-    )
+    # print("g ", g)
+    # print("self ", self)
 
-    # Get total cards studied today
-    studied, thetime = self.col.db.first("""
-select count(), sum(time)/1000 from revlog
-where id > ?""", (self.col.sched.dayCutoff-86400)*1000)
-    studied = studied or 0
-    thetime = thetime or 0
-
-    workload = studied + due
-
-    workloadLimit = config['workloadLimit']
-    workloadMax = config['workloadMax']
-    scale = workloadMax - workloadLimit
-
-    excess = max(0, workload - workloadLimit)
-
-    # Get the configured perDay limit for this deck
+    # Get the configuration for the deck
     c = self.col.decks.confForDid(g['id'])
-    perDay = c['new']['perDay']
-    print("perDay = ", perDay)
 
-    # Scale perDay according to workload excess
-    if scale > 0:
-        perDay = max(0, int(perDay * (1 - excess / scale)))
-    elif excess > 0:
-        perDay = 0
+    limit = max(0, c['new']['perDay'] - g['newToday'][1])
+    # print("limit ", limit)
 
-    # The limit is the lower of the limit calculated here
-    # and the limit from the default _deckNewLimitSingle function
-    # and the number of new cards already studied today is subtracted
-    # to give the current limit on additional new cards today (not
-    # the total for the day)
-    limit = max(0, perDay - g["newToday"][1])
+    enablePerDeckLimits = config.get('enablePerDeckLimits', True)
+    enableTotalLimits = config.get('enableTotalLimits', True)
+
+    if enablePerDeckLimits:
+        # Get the set of decks to be considered: current deck plus any children
+        decks = [ g['id'] ] + [
+            did for (name, did) in self.col.decks.children(g['id'])
+        ]
+        deckWorkloadLimit = c['new'].get('workloadLimit',
+                config.get('defaultDeckWorkloadLimit', 200))
+        deckWorkloadMax = c['new'].get('workloadMax',
+                config.get('defaultDeckWorkloadMax', 250))
+        deckLimit = newCardLimit(self, g, decks,
+            deckWorkloadLimit, deckWorkloadMax)
+
+    if enableTotalLimits:
+        totalWorkloadLimit = config.get('totalWorkloadLimit', 200)
+        totalWorkloadMax = config.get('totalWorkloadMax', 250)
+
+        totalLimit = newCardLimit(self, g, self.col.decks.allIds(),
+            totalWorkloadLimit, totalWorkloadMax)
+
+    if enablePerDeckLimits and enableTotalLimits:
+        # print("deckLimit ", deckLimit)
+        # print("totalLimit ", totalLimit)
+        if config.get('mode', 'min') == 'min':
+            limit = min(deckLimit, totalLimit)
+        else:
+            limit = max(deckLimit, totalLimit)
+    elif enablePerDeckLimits:
+        limit = deckLimit
+    elif enableTotalLimits:
+        limit = totalLimit
+    else:
+        limit = max(0, c['new']['perDay'] - g['newToday'][1])
+
+    # Ensure limit isn't negative
+    limit = max(0, limit)
+    # print("limit ", limit)
 
     return limit
+
     
+def setupUI(self, Dialog):
+
+    label1 = QLabel(self.tab)
+    label1.setText("Workload Limit")
+    label2 = QLabel(self.tab)
+    label2.setText("cards")
+    self.workloadLimit = QSpinBox(self.tab)
+    self.workloadLimit.setMinimum(0)
+    self.workloadLimit.setMaximum(9999)
+    label3 = QLabel(self.tab)
+    label3.setText("Workload Max")
+    label4 = QLabel(self.tab)
+    label4.setText("cards")
+    self.workloadMax = QSpinBox(self.tab)
+    self.workloadMax.setMinimum(0)
+    self.workloadMax.setMaximum(9999)
+    rows = self.gridLayout.rowCount()
+    self.gridLayout.addWidget(label1, rows, 0, 1, 1)
+    self.gridLayout.addWidget(self.workloadLimit, rows, 1, 1, 1)
+    self.gridLayout.addWidget(label2, rows, 2, 1, 1)
+    self.gridLayout.addWidget(label3, rows+1, 0, 1, 1)
+    self.gridLayout.addWidget(self.workloadMax, rows+1, 1, 1, 1)
+    self.gridLayout.addWidget(label4, rows+1, 2, 1, 1)
+
+
+
+def load_conf(self):
+    f = self.form
+    c = self.conf["new"]
+    f.workloadLimit.setValue(c.get('workloadLimit', 200))
+    f.workloadMax.setValue(c.get('workloadMax', 250))
+
+
+def save_conf(self):
+    f = self.form
+    c = self.conf["new"]
+    c['workloadLimit'] = f.workloadLimit.value()
+    c['workloadMax'] = f.workloadMax.value()
+
+def initializeOptions():
+    dconf.Ui_Dialog.setupUi = wrap(dconf.Ui_Dialog.setupUi, setupUI)
+    DeckConf.loadConf = wrap(DeckConf.loadConf, load_conf)
+    DeckConf.saveConf = wrap(DeckConf.saveConf, save_conf, 'before')
+
+
+if config.get('enablePerDeckLimits', False):
+    initializeOptions()
 
 origDeckNewLimitSingle = SchedulerV2._deckNewLimitSingle
 SchedulerV2._deckNewLimitSingle = myDeckNewLimitSingle
