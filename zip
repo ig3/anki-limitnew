@@ -1,3 +1,5 @@
 #!/bin/bash
 rm limitnew.ankiaddon
-zip limitnew.ankiaddon config.json __init__.py README.md LICENSE manifest.json
+zip -r limitnew.ankiaddon config.json __init__.py README.md LICENSE \
+manifest.json \
+versions

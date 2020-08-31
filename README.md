@@ -3,6 +3,10 @@ Limit the number of new cards in Anki.
 
 This addon works only with Anki 2.1 and the V2 scheduler.
 
+There are two implementations: one that works on Anki 2.1.22 and later and
+an earlier, simpler implementation that works on releases at least as old
+as 2.1.17.
+
 It limits the number of new cards, based on the number of new and review
 cards scheduled and the number of cards studied.
 
@@ -135,3 +139,63 @@ This parameter may be set to an integer.
 
 If enableDeckLimits is set to true, then this parameter sets the default
 value of the option group Workload Max parameter.
+
+## Anki versions older than 2.1.22
+
+The latest implementation uses hook scheduler_new_limit_for_single_deck,
+introduced with Anki 2.1.22. For older versions, the old monkey patch
+integration is used. This version of the add-on is much simpler.
+
+### Configuration
+
+The old implementation has only two configuration parameters:
+
+   * workloadLimit (default 200)
+   * workloadMax (default 250)
+
+These are applied to workload calculated across all decks. There is no
+support for per-deck workload limits.
+
+For example, you can set configuration to:
+
+```
+{
+  "workloadLimit": 200,
+  "workloadMax": 250
+}
+```
+
+Any other configuration parameters will be ignored.
+
+
+## Change Log
+
+### 31 Aug 2020
+
+A major rewrite to address some performance issues.
+
+For Anki 2.1.22 and later, the scheduler_new_limit_for_single_deck hook is
+used for integration.  Neither _groupChildrenMain nor _deckNewLimitSingle
+are monkey patched. For older versions of Anki, the old implementation is
+still used - monkey patching _groupChildrenMain and _deckNewLimitSingle.
+
+The new implementation supports workload limits per deck, with
+configuration in deck options, and total workload limit with configuration
+in add-on options.
+
+Database queries to determine workload (cards due and cards studied) are
+rewritten to improve performance and results are cached to avoid re-running
+them unnecessarily. The cache is cleared when cards are reviewed.
+
+#### hooks
+
+##### scheduler_new_limit_for_single_deck
+
+This pylib hook is used to reduce the limit on new cards per deck, based on
+workload.
+
+##### reviewer_did_answer_card
+
+This GUI hook is used to clear the cache of number of cards due and studied
+when a card is answered. 
+

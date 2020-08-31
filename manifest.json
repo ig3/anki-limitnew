@@ -1,5 +1,5 @@
 {
-  "name": "Limit New Cards",
+  "name": "Limit new cards based on due + reviews",
   "package": "548158563",
   "ankiweb_id": "548158563",
   "author": "Ian Goodacre",
