@@ -41,7 +41,7 @@ cache = {}
 config = mw.addonManager.getConfig(__name__)
 
 def updateConfig(newConfig):
-    print("updateConfig")
+    #print("updateConfig")
     global config
     config = newConfig
 
@@ -312,7 +312,7 @@ def setupUI(self, Dialog):
 
 
 def load_conf(self):
-    print("load_conf")
+    #print("load_conf")
     f = self.form
     c = self.conf["new"]
     f.workloadLimit.setValue(c.get('workloadLimit', 200))
@@ -320,7 +320,7 @@ def load_conf(self):
 
 
 def save_conf(self):
-    print("save_conf")
+    #print("save_conf")
     f = self.form
     c = self.conf["new"]
     c['workloadLimit'] = f.workloadLimit.value()
@@ -349,18 +349,18 @@ def schedulerNewLimitForSingleDeck(limit, deck):
 
 
 def reviewerDidAnswerCard(reviewer, card, ease):
-    print("reviewerDidAnswerCard")
-    print("card ", card)
+    #print("reviewerDidAnswerCard")
+    #print("card ", card)
     # Force re-calculation of workloads
     if 'total' in cache:
         del cache['total']
     deck = mw.col.decks.get(card.did)
-    print("deck ", deck)
+    #print("deck ", deck)
     for g in [deck] + mw.col.decks.parents(card.did):
-        print("clear workload for deck ", g['name'])
+        #print("clear workload for deck ", g['name'])
         if g['id'] in cache:
             del cache[g['id']]
-    print("cache ", cache)
+    #print("cache ", cache)
 
 if config.get('enablePerDeckLimits', False):
     initializeOptions()

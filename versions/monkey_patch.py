@@ -130,7 +130,7 @@ where id > ?""", (self.col.sched.dayCutoff-86400)*1000)
     # Get the configured perDay limit for this deck
     c = self.col.decks.confForDid(g['id'])
     perDay = c['new']['perDay']
-    print("perDay = ", perDay)
+    #print("perDay = ", perDay)
 
     # Scale perDay according to workload excess
     if scale > 0:

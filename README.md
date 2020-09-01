@@ -170,6 +170,10 @@ Any other configuration parameters will be ignored.
 
 ## Change Log
 
+### 2 Sep 2020
+
+Comment out print statements.
+
 ### 31 Aug 2020
 
 A major rewrite to address some performance issues.
