@@ -221,14 +221,15 @@ limits based on these per-deck parameters.
 
 ## Custom Study - increase today's new card limit
 
-Custom study allows you to increase the number of new cards for the day.
-This alters the deck, rather than creating a filtered deck. The
-implementation doesn't actually change the new card limit. Instead, it
-adjusts the count of new cards studied. If you allow 10 more new cards, the
-new card limit is unchanged but the count of new cards studied is reduced
-by 10, possibly to a negative number. Then, as you study more new cards,
-the count of new cards studied is increased. You can study more new cards
-until the count reaches the new card limit.
+[Custom study](https://docs.ankiweb.net/#/filtered-decks?id=custom-study)
+allows you to increase the number of new cards for the day. This alters
+the deck, rather than creating a filtered deck. The implementation doesn't
+actually change the new card limit. Instead, it adjusts the count of new
+cards studied. If you allow 10 more new cards, the new card limit is
+unchanged but the count of new cards studied is reduced by 10, possibly to
+a negative number. Then, as you study more new cards, the count of new
+cards studied is increased. You can study more new cards until the count
+reaches the new card limit.
 
 When your workload is less than your WorkloadLimit, this should work as
 expected but when the add-on has reduced your new card limit, the result
