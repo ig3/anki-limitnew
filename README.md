@@ -1,36 +1,17 @@
 # anki-limitnew
-Limit the number of new cards in Anki.
+Limit the number of new cards in Anki when you have too many cards due.
 
-This addon works only with Anki 2.1 and the V2 scheduler.
+If you have too many cards due, you cannot study them all on schedule. This
+defeats the spaced repitition schedule. Adding more new cards only makes
+the problem worse. You can manually edit your new card limit but this
+add-on adjusts it automatically to keep a steady workload, adding as many
+new cards as you can handle without being overloaded.
+
+This add-on works only with Anki 2.1 and the V2 scheduler.
 
 There are two implementations: one that works on Anki 2.1.22 and later and
 an earlier, simpler implementation that works on releases at least as old
 as 2.1.17.
-
-It limits the number of new cards, based on the number of new and review
-cards scheduled and the number of cards studied.
-
-Too many new cards causes overload. The number of cards to be studied each
-day increases until it is impossible to study all cards on time. This
-defeats the spaced repition schedule and learning becomes less effective.
-
-This addon limits the number of new cards when the number of cards due plus
-card reviews exceeds the configured limit. Limits may be based on total
-numbers for all decks or per deck.
-
-There are two parameters: WorkloadLimit and WorkloadMax. The workload is
-the sum of cards due for review plus the number of cards reviewed on the
-day. If this total exceeds WorkloadLimit then the number of new cards is
-reduced, down to 0 new cards if the total exceeds WorkloadMax. Setting
-WorkloadLimit and WorkloadMax to the same value will result in
-all-or-nothing behaviour: either all of New cards/day or none. Setting
-WorkloadMax greater than WorkloadLimit will cause the number of new cards
-to be gradually reduced as the workload increases from WorkloadLimit to
-WorkloadMax.
-
-A sub-deck cannot have more new cards than its parent deck(s).
-This limitation is imposed by the Anki v2 scheduler. This is true even if
-one studies only the sub-deck. 
 
 ## Installation
 
@@ -40,6 +21,94 @@ one studies only the sub-deck.
 * Restart Anki
 
 GitHub: https://github.com/ig3/anki-limitnew
+
+## Concepts
+
+Ideally, you will complete study of all due cards every day. If you do, you
+will see your review cards according to the spaced repition algorithm. If
+you don't, your reviews of some cards will be delayed and learning will not
+be as effective. If you are unable to study for a few days, you may have
+more reviews due than you can complete in a day and adding more new cards
+will only make the problem worse. You need some time without any more new
+cards to catch up, then you can study new cards again. Otherwise, you may
+be perpetually overloaded and not learning effectively, going into a
+downward spiral of failure.
+
+Each deck has a limit on new cards per day. This is a fixed number and if
+you complete your study each day, you will see this number of new cards
+each day. That's great, as long as you don't get overloaded and fall
+behind. You make steady progress.
+
+Reality is, some cards are easier than others and some days are better than
+others. On a good day with easy cards, you could study many new cards and
+still complete all due reviews. On a bad day or with more difficult cards,
+adding too many new cards will make you fall behind and if you have limited
+time to study, you may not be able to complete all due reviews. If you fall
+behind for other reasons (i.e. you are unable to study for a few days)
+adding new cards before you are caught up just makes it harder to catch up.
+
+But Anki shows the same number of new cards every day, regardless of your
+workload and how well you are coping.
+
+One simple solution is to set your new card limit to 0 then add new cards
+by custom study. This way you can add as many new cards as you want,
+whenever you have capacity but not add any when you are overloaded.
+Effectively, you manage the number of new cards manually.
+
+Another is to edit your deck options to reduce your new card limit when you
+are overloaded and increase it when you are not. Again, you are managing
+the number of new cards manually.
+
+Yet another is to set Anki scheduling options to show new cards after
+reviews. If you don't complete your reviews, you will not see any new
+cards. This is *automatic* but you will see all your new cards together, at
+the end of your study and each deck is handled separately. If you have
+multiple decks, you may spend time studying new cards in one deck, then not
+have time to finish all the cards due when studying a subsequent deck.
+
+With this add-on you can limit the number of new cards you see across all
+decks and regardless of study order (new cards first, last or mixed with
+reviews). The limit is adjusted according to your workload. If you are
+coping well and your workload is light, more new cards will be shown. If
+your workload increases, fewer new cards will be shown. If your workload is
+too much, no new cards will be shown.
+
+The objective is to show as many new cards as possible, maintain a steady
+overall workload and avoid overload so that you can complete all scheduled
+reviews most days.
+
+New cards are limited based on workload, which is an approximation of the
+time and effort you are putting into studying on a given day. If workload
+is low, then new cards are available, up to your configured new card limit.
+If workload is high, the number of new cards is limited, so you don't get
+overloaded with new cards until you learn the cards already studied well
+enough to reduce your workload. If workload is too high, you will not see
+any new cards until you catch up and your workload is reduced.
+
+**Workload**: the number of cards due to be reviewed plus the number of
+card views on the day.
+
+Each time you view a card, the calculation of workload is increased. If you
+view the same card several times (e.g. as it progresses through your
+learning steps) then each view of the card contributes to workload. The
+workload is not the number of unique cards, but the total number of card
+views, regardless of which card. At the start of the day no cards have been
+viewed, but some number of cards are due. By the end of the day, if you
+complete review of all cards due, the remaining cards due is 0 but you will
+have viewed cards some number of time.
+
+There are two parameters: WorkloadLimit and WorkloadMax. The new cards
+limit is reduced if the workload exceeds WorkloadLimit. It is reduced
+gradually, down to 0 when the workload exceeds WorkloadMax. Depending on
+your preference, WorkloadLimit and WorkloadMax can be made equal for an
+abrupt cutoff of new cards, or WorkloadMax can be made greater than
+WorkloadLimit for a gradual reduction.
+
+**WorkloadLimit**: the lower limit, beyond which new cards per day begins
+to be reduced from its configured value.
+
+**WorkLoadMax**: the upper limit, beyond which the new cards per day is
+reduced to 0.
 
 ## Configuration
 
@@ -54,7 +123,7 @@ The add-on has the following configuration parameters:
    * defaultDeckWorkloadMax
 
 To change the configuration, start Anki and open Tools -> Add-ons, select
-the limitnew addong and click Configure. Set values for the two parameters,
+the limitnew add-on and click Configure. Set values for the two parameters,
 then click OK.
 
 ### enableDeckLimits - default true
@@ -93,7 +162,7 @@ This parameter may be set to min or max.
 
 If both enableDeckLimits and enableTotalLimits are true, then this
 parameter determines whether the number of new cards for a given deck is
-maximum of the two limits.
+the maximum of the two limits or the minimum of them.
 
 ### totalWorkloadLimit - default 200
 
@@ -139,6 +208,66 @@ This parameter may be set to an integer.
 
 If enableDeckLimits is set to true, then this parameter sets the default
 value of the option group Workload Max parameter.
+
+## Per-Deck Limits
+
+If `enableDeckLimits` is set to true, then deck options will include two
+new parameters: `Workload Limit` and `Workload Max`. These values will not
+appear in the add-on configuration file. They only appear in the deck
+options. They work the same as the add-on WorkloadLimit and WorkloadMax
+parameters, except the workload is that of the specific deck and its
+sub-decks, if there are any. Workload in another deck will not affect
+limits based on these per-deck parameters.
+
+## Custom Study - increase today's new card limit
+
+Custom study allows you to increase the number of new cards for the day.
+This alters the deck, rather than creating a filtered deck. The
+implementation doesn't actually change the new card limit. Instead, it
+adjusts the count of new cards studied. If you allow 10 more new cards, the
+new card limit is unchanged but the count of new cards studied is reduced
+by 10, possibly to a negative number. Then, as you study more new cards,
+the count of new cards studied is increased. You can study more new cards
+until the count reaches the new card limit.
+
+When your workload is less than your WorkloadLimit, this should work as
+expected but when the add-on has reduced your new card limit, the result
+can be a bit confusing.
+
+Consider if your new card limit is 20 cards and you study 20 new cards.
+Then your count of new cards is 20, your limit is 20 and Anki will not show
+you any more new cards. If you continue to study so that your total number
+of reviews exceeds your WorkloadMax, then this add-on will reduce your new
+card limit to 0. Now, your new card limit is 0, but your count of new cards
+is still 20. If you then add 10 more new cards by custom study, your new
+card limit is still 0 and your count of new cards is reduced to 10, but 10
+is still more than 0 so you will not see any more new cards. If you then
+allow another 15 new cards, your count of new cards studied is reduced to
+-5 (these adjustments are cumulative). Since -5 is less than 0, you will
+see 5 more new cards. 
+
+## Filtered decks
+
+[Filtered decks](https://docs.ankiweb.net/#/filtered-decks?id=filtered-decks-amp-cramming)
+are for study outside the normal spaced repitition algorithm and deck
+configuration.
+
+This add-on does not limit new cards in filtered decks. This includes
+filtered decks you create manually and those created by custom study.
+
+Filtered decks do have reviews due and studying a filtered deck contributes
+to the count of card views - increasing the total workload for the day.
+This will not affect per-deck limits (assuming the filtered deck is not a
+sub-deck of the deck being studied) but it will affect the limits based on
+total workload.
+
+## Sub-decks
+
+The new card limit of a sub-deck cannot be more than the limit of its
+parent deck. This limitation is imposed by the Anki v2 scheduler. This is
+true even if one studies only the sub-deck. This add-on may reduce the new
+card limit of the parent deck and as a result limit the new card limit of
+the sub-deck, regardless of the configuration of the sub-deck.
 
 ## Anki versions older than 2.1.22
 
