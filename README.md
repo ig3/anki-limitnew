@@ -15,7 +15,7 @@ as 2.1.17.
 
 ## Installation
 
-* Download limitnew.ankaddon
+* Download limitnew.ankiaddon
 * Start Anki and open Tools -> Add-ons
 * Drag the downloaded .ankiaddon file onto the add-ons list
 * Restart Anki
