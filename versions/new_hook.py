@@ -337,14 +337,18 @@ def initializeOptions():
 # It returns the lower of the default limit and the limit calculated
 # by the plugin.
 def schedulerNewLimitForSingleDeck(limit, deck):
-    # print("schedulerNewLimitForSingleDeck - hook function - ", limit,
-    #     deck['name'])
-    # start = time.perf_counter()
-    newLimit = myDeckNewLimitSingle(mw.col.sched, deck)
-    if newLimit < limit:
-        # print("reduce limit from ", limit, " to ", newLimit)
-        limit = newLimit
-    # print("schedulerNewLimitForSingleDeck elapsed ", (time.perf_counter() - start))
+    # See: https://github.com/ig3/anki-limitnew/issues/4
+    # Evidently, when syncing, this hook is sometimes called with
+    # no collection on the main window. I don't have a context in
+    # which to reproduce the error, so this change is speculative,
+    # based solely on the issue report. When studying, the collection
+    # is defined, so this shouldn't cause any problems for normal
+    # operation.
+    if mw.col is not None:
+        newLimit = myDeckNewLimitSingle(mw.col.sched, deck)
+        if newLimit < limit:
+            # print("reduce limit from ", limit, " to ", newLimit)
+            limit = newLimit
     return limit
 
 
