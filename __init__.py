@@ -22,5 +22,7 @@ if anki_version < '2.1.22':
         )
         showWarning(msg, title=title, textFormat="rich")
     from .versions import monkey_patch
-else:
+elif anki_version < '2.1.28';
     from .versions import new_hook
+else:
+    from .versions import add_on_2_1_28
