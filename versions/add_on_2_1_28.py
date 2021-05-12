@@ -35,7 +35,6 @@ totalCount = 0
 config = mw.addonManager.getConfig(__name__)
 
 def updateConfig(newConfig):
-    #print("updateConfig")
     global config
     config = newConfig
 
@@ -69,7 +68,6 @@ def setupUI(self, Dialog):
 
 
 def load_conf(self):
-    #print("load_conf")
     f = self.form
     c = self.conf["new"]
     f.workloadLimit.setValue(c.get('workloadLimit', 200))
@@ -77,7 +75,6 @@ def load_conf(self):
 
 
 def save_conf(self):
-    #print("save_conf")
     f = self.form
     c = self.conf["new"]
     c['workloadLimit'] = f.workloadLimit.value()
@@ -95,84 +92,56 @@ def initializeOptions():
 
 def reviewerDidAnswerCard(reviewer, card, ease):
     global totalCount
-    print("************")
-    print("reviewerDidAnswerCard")
-    # print("card ", card)
-    # print("ease ", ease)
     totalCount += 1
     deck_id = card.did
     tree = mw.col.sched.deck_due_tree()
     for did in [deck_id] + [x["id"] for x in mw.col.decks.parents(deck_id)]:
-        print("deck id ", did)
         limitDeck(did, tree)
     
 
 def limitDeck(deck_id, tree):
-    print("limitDeck ", deck_id)
     enablePerDeckLimits = config.get('enablePerDeckLimits', True)
     enableTotalLimits = config.get('enableTotalLimits', True)
     conf = mw.col.decks.confForDid(deck_id)
-    # print("deck config ", conf)
     newPerDay = conf['new']['perDay']
     maxNew = newPerDay
-    # print("newPerDay ", newPerDay)
     if enableTotalLimits:
         totalWorkloadLimit = config.get('totalWorkloadLimit', 200)
-        #print("totalWorkloadLimit ", totalWorkloadLimit)
         totalWorkloadMax = config.get('totalWorkloadMax', 250)
-        #print("totalWorkloadMax ", totalWorkloadMax)
-        print("totalCount ", totalCount)
         excess = totalCount - totalWorkloadLimit
-        print("excess ", excess)
         if excess > 0:
             range = totalWorkloadMax - totalWorkloadLimit
-            ratio = excess / range
-            #print("ratio ", ratio)
-            maxNew = max(0, min(maxNew, int(round(newPerDay * (1 - ratio)))))
-            #print("maxNew ", maxNew)
+            if range > 0:
+                ratio = excess / range
+                maxNew = max(0, min(maxNew, int(round(newPerDay * (1 - ratio)))))
 
     node = mw.col.decks.find_deck_in_tree(tree, deck_id)
-    print("node ", node)
     if enablePerDeckLimits:
         deckWorkloadLimit = conf['new'].get('workloadLimit',
                 config.get('defaultDeckWorkloadLimit', 200))
-        #print("deckWorkloadLimit ", deckWorkloadLimit)
         deckWorkloadMax = conf['new'].get('workloadMax',
                 config.get('defaultDeckWorkloadMax', 250))
-        #print("deckWorkloadMax ", deckWorkloadMax)
         dids = [deck_id]
         for name, id in mw.col.decks.children(deck_id):
             dids.append(id)
-        print("dids ", dids)
         cardsStudied = mw.col.db.scalar(
             f"""
 select count() from revlog join cards on cards.id = revlog.cid
 where revlog.id > ? and cards.did in """ + ids2str(dids),
             (mw.col.sched.dayCutoff - 86400) * 1000
         )
-        print("cardsStudied ", cardsStudied)
         workload = cardsStudied or 0
         if node:
-            #print("add workload from counts")
             workload += node.learn_count + node.new_count + node.review_count
-        print("deck workload ", workload)
         excess = workload - deckWorkloadLimit
-        print("excess ", excess)
         if excess > 0:
             range = deckWorkloadMax - deckWorkloadLimit
-            print("range ", range)
-            ratio = excess / range
-            print("ratio ", ratio)
-            print("x ", newPerDay * (1 - ratio))
-            print("x ", int(round(newPerDay * (1-ratio))))
-            maxNew = max(0, min(maxNew, int(round(newPerDay * (1 - ratio)))))
-            print("maxNew ", maxNew)
+            if range > 0:
+                ratio = excess / range
+                maxNew = max(0, min(maxNew, int(round(newPerDay * (1 - ratio)))))
 
-    print("maxNew ", maxNew, " Vs ", newPerDay)
     if node and node.new_count > maxNew:
-        print("new_count ", node.new_count)
         delta = node.new_count - maxNew
-        print("delta ", delta)
         mw.col.sched.update_stats(deck_id, new_delta=delta)
 
 
@@ -183,7 +152,6 @@ def onCollectionDidLoad(col):
 
     # the due tree gives us cards due today
     tree = col.sched.deck_due_tree()
-    print("tree ", tree)
 
     if enableTotalLimits:
         # We need total workload: studied + scheduled
@@ -195,16 +163,13 @@ def onCollectionDidLoad(col):
             (mw.col.sched.dayCutoff - 86400) * 1000
         )
         cardsStudied = cardsStudied or 0
-        print("cardsStudied ", cardsStudied)
         totalCount += cardsStudied
-        print("totalCount ", totalCount)
 
 
     # For each deck, we need the total of cards scheduled + cards studied
     # This is the workload for the deck. We also need total scheduled + 
     # total studied. The totals are the sums of the per-deck totals, for top
     # level decks only.
-    print("iterate over all decks")
     for x in col.decks.all_names_and_ids():
         limitDeck(x.id, tree)
 
