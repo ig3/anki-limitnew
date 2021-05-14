@@ -1,8 +1,10 @@
 {
   "totalWorkloadLimit": 200,
   "totalWorkloadMax": 250,
+  "totalOverdueMax": 20,
   "defaultDeckWorkloadLimit": 200,
   "defaultDeckWorkloadMax": 240,
+  "defaultOverdueMax": 20,
   "enablePerDeckLimits": true,
   "enableTotalLimits": true,
   "mode": "min"

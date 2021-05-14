@@ -1,5 +1,5 @@
 # anki-limitnew
-Limit the number of new cards in Anki when you have too many cards due.
+Limit the number of new cards in Anki based on workload.
 
 If you have too many cards due, you cannot study them all on schedule. This
 defeats the spaced repitition schedule. Adding more new cards only makes
@@ -9,9 +9,10 @@ new cards as you can handle without being overloaded.
 
 This add-on works only with Anki 2.1 and the V2 scheduler.
 
-There are two implementations: one that works on Anki 2.1.22 and later and
-an earlier, simpler implementation that works on releases at least as old
-as 2.1.17.
+There are three implementations:
+1. The original implementation for Anki 2.1.22
+2. An implementation for Anki 2.1.22 through 2.1.27
+3. The latest implementation for Anki 2.1.28
 
 ## Installation
 
@@ -66,43 +67,69 @@ the end of your study and each deck is handled separately. If you have
 multiple decks, you may spend time studying new cards in one deck, then not
 have time to finish all the cards due when studying a subsequent deck.
 
-With this add-on you can limit the number of new cards you see across all
-decks and regardless of study order (new cards first, last or mixed with
-reviews). The limit is adjusted according to your workload. If you are
-coping well and your workload is light, more new cards will be shown. If
-your workload increases, fewer new cards will be shown. If your workload is
-too much, no new cards will be shown.
+With this add-on you can limit the number of new cards you see based on
+number of overdue cards, number of cards scheduled and number of cards
+viewed and you can set limits for the totals of these across all decks
+and for each deck individually. 
 
-The objective is to show as many new cards as possible, maintain a steady
-overall workload and avoid overload so that you can complete all scheduled
-reviews most days.
+The limits work regardless of study order (new cards first, last or mixed
+with reviews).
 
-New cards are limited based on workload, which is an approximation of the
-time and effort you are putting into studying on a given day. If workload
-is low, then new cards are available, up to your configured new card limit.
-If workload is high, the number of new cards is limited, so you don't get
-overloaded with new cards until you learn the cards already studied well
-enough to reduce your workload. If workload is too high, you will not see
-any new cards until you catch up and your workload is reduced.
+If you are coping well you will not have any overdue cards and the sum of
+cards viewed and scheduled will be below the limits you set. In this case
+you will see the full number of new cards you have configured as
+`New cards/day` in you options for New Cards.
+
+If you have overdue cards or the sum of scheduled and viewed cards exceeds
+the limit you configure for this add-on, then the number of new cards you
+see will be reduced. The reduction is gradual, reacing zero at the maximums
+you set. Limits and maximums can be set for each deck and for totals across
+all decks.
+
+The objective is to studay as many new cards as possible without becoming
+overloaded so that you can complete all scheduled reviews each day. If you
+do become overloaded, then hold off new cards completely, until you catch
+up with scheduled reviews.
+
+New cards a limited based on number of overdue cards and `workload`: the
+sum of cards scheduled and cards viewed for the day. This is an
+approximation of the time and effort you are putting in to studying.
 
 **Workload**: the number of cards due to be reviewed plus the number of
 card views on the day.
 
-Each time you view a card, the calculation of workload is increased. If you
-view the same card several times (e.g. as it progresses through your
+If you view the same card several times (e.g. as it progresses through your
 learning steps) then each view of the card contributes to workload. The
 workload is not the number of unique cards, but the total number of card
 views, regardless of which card. At the start of the day no cards have been
 viewed, but some number of cards are due. By the end of the day, if you
 complete review of all cards due, the remaining cards due is 0 but you will
-have viewed cards some number of time.
+have viewed some number of cards. The sum of due and viewed cards the the
+approximation of workload. It tends to increase as you will view hard cards
+more than once.
 
-There are two parameters: WorkloadLimit and WorkloadMax. The new cards
-limit is reduced if the workload exceeds WorkloadLimit. It is reduced
-gradually, down to 0 when the workload exceeds WorkloadMax. Depending on
-your preference, WorkloadLimit and WorkloadMax can be made equal for an
-abrupt cutoff of new cards, or WorkloadMax can be made greater than
-WorkloadLimit for a gradual reduction.
+**Overdue**: the number of cards overdue for review is simpler. If you
+complete all scheduled reviews each day, this number will be 0 but if you
+don't complete all scheduled reviews then you will accumulate overdue
+cards.
+
+**OverdueMax**: the upper limit on overdue cards, beyond which no new
+cards per day will be reduced to 0.
+
+For the limit based on overdue cards there is one parameter: `OverdueMax`.
+The new cards limit is reduced if there are any overdue cards. It is
+reduced gradually, down to 0 when the number of overdue cards exceeds
+`OverdueMax`. For example, if New cards/day is 20 and OverdueMax is 10,
+then if you have 0 overdue cards you may see 20 new cards but if you have 5
+overdue cards you may only see 10 new cards and if you have 10 or more
+overdue cards you will not see any new cards.
+
+For the limit based on workload there are two parameters: WorkloadLimit and
+WorkloadMax. The new cards limit is reduced if the workload exceeds
+WorkloadLimit. It is reduced gradually, down to 0 when the workload exceeds
+WorkloadMax. Depending on your preference, WorkloadLimit and WorkloadMax
+can be set equal for an abrupt cutoff of new cards, or WorkloadMax can be
+set greater than WorkloadLimit for a gradual reduction.
 
 **WorkloadLimit**: the lower limit, beyond which new cards per day begins
 to be reduced from its configured value.
@@ -119,8 +146,10 @@ The add-on has the following configuration parameters:
    * mode
    * totalWorkloadLimit
    * totalWorkloadMax
+   * totalOverdueMax
    * defaultDeckWorkloadLimit
    * defaultDeckWorkloadMax
+   * defaultDeckOverdueMax
 
 To change the configuration, start Anki and open Tools -> Add-ons, select
 the limitnew add-on and click Configure. Set values for the two parameters,
@@ -131,19 +160,20 @@ then click OK.
 This parameter may be set to true or false.
 
 If it is true, then new cards are limited per deck.
-Two new parameters are added to the New tab of deck options:
+Three new parameters are added to the New tab of deck options:
 
    * Workload Limit
    * Workload Max
+   * Overdue Max
 
 These parameters are configured per option group. Each deck has an option
 group configured. By creating multiple option groups, each deck can be
 configured differently.
 
-These parameters work as described above but the workload is calculated
-separately for each deck. If decks are nested, then the calculation of
-workload for a deck includes cards due and studied in the deck itself and
-in its sub-decks.
+These parameters work as described above but the workload and overdue cards
+are calculated separately for each deck. If decks are nested, then the
+calculations include cards overdue, due and studied for a deck and its
+sub-decks.
 
 
 ### enableTotalLimits - default true
@@ -151,10 +181,12 @@ in its sub-decks.
 This parameter may be set to true or false.
 
 If it is true then new cards are limited based on total workload: the sum
-of cards due and studied across all decks.
+of cards due and studied across all decks, and total number of overdue
+cards.
 
 The limits are configured in add-on configuration parameters
-totalWorkloadLimit and totalWorkloadMax. These work as described above.
+totalWorkloadLimit, totalWorkloadMax and totalOverdueMax. These work as
+described above.
 
 ### mode - default min
 
@@ -163,6 +195,10 @@ This parameter may be set to min or max.
 If both enableDeckLimits and enableTotalLimits are true, then this
 parameter determines whether the number of new cards for a given deck is
 the maximum of the two limits or the minimum of them.
+
+This parameter only works for the older implementations. For the current
+implementation (Anki 2.1.28 and later) the number of new cards is always
+the minimum.
 
 ### totalWorkloadLimit - default 200
 
@@ -191,9 +227,21 @@ If workloadMax is greater than workloadLimit then the new
 card limit will be gradually reduced as workload increases from
 workloadLimit to workloadMax.
 
-Recommendation: Set workloadMax to the workload beyond which you don't want
-to see any new cards. If you want your new cards to be all-or-nothing, set
-workloadMax to the same value as WorkloadLimit.
+Recommendation: Set totalWorkloadMax to the workload beyond which you don't
+want to see any new cards. If you want your new cards to be all-or-nothing,
+set totalWorkloadMax to the same value as totalWorkloadLimit.
+
+### totalOverdueMax - default 20
+
+This parameter may be set to an integer.
+
+The totalOverdueMax is the number of overdue cards beyond which the new
+card limit will be reduced to 0.
+
+Recommendation: Set totalOverdueMax low. You will only have overdue cards
+if you fail to study all scheduled reviews. This is a strong indicator that
+you are overloaded, in which case adding more new cards will not be
+helpful.
 
 ### defaultDeckWorkloadLimit - default 200
 
@@ -209,15 +257,22 @@ This parameter may be set to an integer.
 If enableDeckLimits is set to true, then this parameter sets the default
 value of the option group Workload Max parameter.
 
+### defaultDeckOverdueMax - default 20
+
+This parameter may be set to an intenger.
+
+If enableDeckLimits is set to true, then this parameter sets the default
+value of the option group Overdue Max parameter.
+
 ## Per-Deck Limits
 
-If `enableDeckLimits` is set to true, then deck options will include two
-new parameters: `Workload Limit` and `Workload Max`. These values will not
-appear in the add-on configuration file. They only appear in the deck
-options. They work the same as the add-on WorkloadLimit and WorkloadMax
-parameters, except the workload is that of the specific deck and its
-sub-decks, if there are any. Workload in another deck will not affect
-limits based on these per-deck parameters.
+If `enableDeckLimits` is set to true, then deck options will include three
+new parameters: `Workload Limit`, `Workload Max` and `Overdue Max`. These
+values will not appear in the add-on configuration file. They only appear
+in the deck options. They work the same as the corresponding `total`
+parameters in the add-on configuration, except the workload and overdue
+cards are for the partucular deck. However, if you have nested decks, then
+the number for the parent deck include those of the sub-decks.
 
 ## Custom Study - increase today's new card limit
 
@@ -236,16 +291,23 @@ expected but when the add-on has reduced your new card limit, the result
 can be a bit confusing.
 
 Consider if your new card limit is 20 cards and you study 20 new cards.
-Then your count of new cards is 20, your limit is 20 and Anki will not show
-you any more new cards. If you continue to study so that your total number
-of reviews exceeds your WorkloadMax, then this add-on will reduce your new
-card limit to 0. Now, your new card limit is 0, but your count of new cards
-is still 20. If you then add 10 more new cards by custom study, your new
-card limit is still 0 and your count of new cards is reduced to 10, but 10
-is still more than 0 so you will not see any more new cards. If you then
-allow another 15 new cards, your count of new cards studied is reduced to
--5 (these adjustments are cumulative). Since -5 is less than 0, you will
-see 5 more new cards. 
+With the older implementations, your count of new cards is 20, your limit
+is 20 and Anki will not show you any more new cards. If you continue to
+study so that your total number of reviews exceeds your WorkloadMax, then
+this add-on will reduce your new card limit to 0. Now, your new card limit
+is 0, but your count of new cards is still 20. If you then add 10 more new
+cards by custom study, your new card limit is still 0 and your count of new
+cards is reduced to 10, but 10 is still more than 0 so you will not see any
+more new cards. If you then allow another 15 new cards, your count of new
+cards studied is reduced to -5 (these adjustments are cumulative). Since -5
+is less than 0, you will see 5 more new cards. 
+
+The latest implementation is different. It changes the number of new cards
+you will see by changing the number of new cards seen, rather than the
+limit on new cards. Thus, it works consistently with how custom study
+works: to make Anki believe you have studied more or less new cards than
+you actually have. Being consistent with how custom study works, it will,
+hopefully, be a little less confusing if you do custom study.
 
 ## Filtered decks
 
@@ -299,6 +361,16 @@ Any other configuration parameters will be ignored.
 
 
 ## Change Log
+
+### 14 May 2021
+
+A new implementation that works with Anki 2.1.28 and later.
+
+Added limit on overdue cards as an alternative basis for limiting new
+cards. Having overdue cards is a strong indication that you are overloaded.
+While your number of scheduled and viewed cards are likely to be high in
+such a case, you might want to limit new cards purely on the basis of
+overdue cards, regardless of workload.
 
 ### 2 Sep 2020
 
