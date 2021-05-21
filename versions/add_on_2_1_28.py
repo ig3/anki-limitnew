@@ -54,6 +54,7 @@ def setupUI(self, Dialog):
     self.workloadLimit = QSpinBox(self.tab)
     self.workloadLimit.setMinimum(0)
     self.workloadLimit.setMaximum(9999)
+
     label3 = QLabel(self.tab)
     label3.setText("Workload Max")
     label4 = QLabel(self.tab)
@@ -61,6 +62,7 @@ def setupUI(self, Dialog):
     self.workloadMax = QSpinBox(self.tab)
     self.workloadMax.setMinimum(0)
     self.workloadMax.setMaximum(9999)
+
     label5 = QLabel(self.tab)
     label5.setText("OverdueMax")
     label6 = QLabel(self.tab)
@@ -68,6 +70,15 @@ def setupUI(self, Dialog):
     self.overdueMax = QSpinBox(self.tab)
     self.overdueMax.setMinimum(0)
     self.overdueMax.setMaximum(9999)
+
+    label7 = QLabel(self.tab)
+    label7.setText("Minimum New")
+    label8 = QLabel(self.tab)
+    label8.setText("cards")
+    self.minimumNew = QSpinBox(self.tab)
+    self.minimumNew.setMinimum(0)
+    self.minimumNew.setMaximum(9999)
+
     rows = self.gridLayout.rowCount()
     # workloadLimit
     self.gridLayout.addWidget(label1, rows, 0, 1, 1)
@@ -81,7 +92,10 @@ def setupUI(self, Dialog):
     self.gridLayout.addWidget(label5, rows+2, 0, 1, 1)
     self.gridLayout.addWidget(self.overdueMax, rows+2, 1, 1, 1)
     self.gridLayout.addWidget(label6, rows+2, 2, 1, 1)
-
+    # minimumNew
+    self.gridLayout.addWidget(label7, rows+3, 0, 1, 1)
+    self.gridLayout.addWidget(self.overdueMax, rows+3, 1, 1, 1)
+    self.gridLayout.addWidget(label8, rows+3, 2, 1, 1)
 
 
 def load_conf(self):
@@ -90,6 +104,7 @@ def load_conf(self):
     f.workloadLimit.setValue(c.get('workloadLimit', 200))
     f.workloadMax.setValue(c.get('workloadMax', 250))
     f.overdueMax.setValue(c.get('overdueMax', 20))
+    f.minimumNew.setValue(d.get('minimumNew', 1))
 
 
 def save_conf(self):
@@ -98,6 +113,7 @@ def save_conf(self):
     c['workloadLimit'] = f.workloadLimit.value()
     c['workloadMax'] = f.workloadMax.value()
     c['overdueMax'] = f.overdueMax.value()
+    c['minimumNew'] = f.minimumNew.value()
 
 def initializeOptions():
     dconf.Ui_Dialog.setupUi = wrap(dconf.Ui_Dialog.setupUi, setupUI)
@@ -160,26 +176,27 @@ def limitDeck(deck_id, tree):
         totalWorkloadLimit = config.get('totalWorkloadLimit', 200)
         totalWorkloadMax = config.get('totalWorkloadMax', 250)
         totalOverdueMax = config.get('totalOverdueMax', 50)
+        totalMinimumNew = config.get('totalMinimumNew', 1)
         # Check workload
         if totalCount > totalWorkloadMax:
-            maxNew = 0
+            maxNew = totalMinimumNew
         elif totalCount > totalWorkloadLimit:
             excess = totalCount - totalWorkloadLimit
             range = totalWorkloadMax - totalWorkloadLimit
             if range > 0:
                 ratio = excess / range
-                maxNew = max(0, min(maxNew, int(round(newPerDay * (1 - ratio)))))
+                maxNew = max(totalMinimumNew, min(maxNew, int(round(newPerDay * (1 - ratio)))))
             else:
-                maxNew = 0
+                maxNew = totalMinimumNew
         # Check overdue once per day
         # During a day, number of overdue cards can only go down, never up
         if lastDay != mw.col.sched.today:
             print("total overdue ", totalOverdue)
             if totalOverdue > totalOverdueMax:
-                maxNew = 0
+                maxNew = totalMinimumNew
             elif totalOverdue > 0 and totalOverdueMax > 0:
                 ratio = totalOverdue / totalOverdueMax
-                maxNew = min(0, min(maxNew, int(round(newPerDay * (1 - ratio)))))
+                maxNew = min(totalMinimumNew, min(maxNew, int(round(newPerDay * (1 - ratio)))))
 
     node = mw.col.decks.find_deck_in_tree(tree, deck_id)
     if enablePerDeckLimits:
@@ -188,7 +205,9 @@ def limitDeck(deck_id, tree):
         deckWorkloadMax = conf['new'].get('workloadMax',
                 config.get('defaultDeckWorkloadMax', 250))
         deckOverdueMax = conf['new'].get('overdueMax',
-                conf.get('defaultOverdueMax', 50))
+                conf.get('defaultDeckOverdueMax', 50))
+        deckMinimumNew = conf['new'].get('minimumNew',
+                conf.get('defaultDeckMinimumNew', 1))
         # Check workload
         dids = [deck_id]
         for name, id in mw.col.decks.children(deck_id):
@@ -203,15 +222,15 @@ where revlog.id > ? and cards.did in """ + ids2str(dids),
         if node:
             workload += node.learn_count + node.new_count + node.review_count
         if workload > deckWorkloadMax:
-            maxNew = 0
+            maxNew = deckMinimumNew
         elif workload > deckWorkloadLimit:
             excess = workload - deckWorkloadLimit
             range = deckWorkloadMax - deckWorkloadLimit
             if range > 0:
                 ratio = excess / range
-                maxNew = max(0, min(maxNew, int(round(newPerDay * (1 - ratio)))))
+                maxNew = max(deckMinimumNew, min(maxNew, int(round(newPerDay * (1 - ratio)))))
             else:
-                maxNew = 0
+                maxNew = deckMinimumNew
         # Check overdue only when the day rolls over
         # During a day, number of overdue cards can only go down, never up
         if lastDay != mw.col.sched.today:
@@ -224,10 +243,10 @@ where queue = {QUEUE_TYPE_REV} and due <= ? and did in """ + ids2str(dids),
             overdue = overdue or 0
             print("deck overdue ", deck_id, overdue)
             if overdue > deckOverdueMax:
-                maxNew = 0
+                maxNew = deckMinimumNew
             elif deckOverdueMax > 0:
                 ratio = overdue / deckOverdueMax
-                maxNew = max(0, min(maxNew, int(round(newPerDay * (1 - ratio)))))
+                maxNew = max(deckMinimumNew, min(maxNew, int(round(newPerDay * (1 - ratio)))))
 
     if node and node.new_count > maxNew:
         delta = node.new_count - maxNew

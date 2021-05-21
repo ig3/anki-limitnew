@@ -147,9 +147,11 @@ The add-on has the following configuration parameters:
    * totalWorkloadLimit
    * totalWorkloadMax
    * totalOverdueMax
+   * totalMinimumNew
    * defaultDeckWorkloadLimit
    * defaultDeckWorkloadMax
    * defaultDeckOverdueMax
+   * defaultDeckMinimumNew
 
 To change the configuration, start Anki and open Tools -> Add-ons, select
 the limitnew add-on and click Configure. Set values for the two parameters,
@@ -190,6 +192,9 @@ described above.
 
 ### mode - default min
 
+This parameter is only used by the older implementations. Implementation
+for Anki 2.1.28 and later ignores it.
+
 This parameter may be set to min or max.
 
 If both enableDeckLimits and enableTotalLimits are true, then this
@@ -204,9 +209,10 @@ the minimum.
 
 This parameter may be set to an integer.
 
-The workloadLimit is the workload beyond which the new card limit will
-be reduced. The total workload is calculated by summing the cards studied
-and reviews and learning cards scheduled across all decks.
+If enableTotalLimits is true, this is the total workload beyond which the
+new card limit will be reduced. The total workload is calculated by summing
+the cards studied and reviews and learning cards scheduled across all
+decks.
 
 Recommendation: Set workloadLimit to the number of cards you can study
 in a couple of hours, or however much time you have available to study each
@@ -219,9 +225,10 @@ set your limit to about 200.
 
 This parameter may be set to an integer.
 
-The workloadMax is the workload beyond which the new card limit will be
-reduced to 0. The total workload is calculated by summing the cards studied
-and reviews and learning cards scheduled across all decks.
+If enableTotalLimits is true, this is the workload beyond which the new
+card limit will be reduced to totalMinimumNew. The total workload is
+calculated by summing the cards studied and reviews and learning cards
+scheduled across all decks.
 
 If workloadMax is greater than workloadLimit then the new
 card limit will be gradually reduced as workload increases from
@@ -235,44 +242,64 @@ set totalWorkloadMax to the same value as totalWorkloadLimit.
 
 This parameter may be set to an integer.
 
-The totalOverdueMax is the number of overdue cards beyond which the new
-card limit will be reduced to 0.
+If enableTotalLimits is true, this is the number of overdue cards beyond
+which the new card limit will be reduced to totalMinimumNew.
 
 Recommendation: Set totalOverdueMax low. You will only have overdue cards
 if you fail to study all scheduled reviews. This is a strong indicator that
 you are overloaded, in which case adding more new cards will not be
 helpful.
 
+### totalMinimumNew - default 1
+
+This parameter may be set to an integer.
+
+If enableTotalLimits is true, this is the minimum that new cards will be
+reduced to based on total workload and overdue cards.
+
+Recommendation: Set this to the number of new cards you want to see every
+day, regardless of your overall workload. It should be low enough that even
+when you are seriously overloaded, you will be able to recover reasonably
+quickly.
+
 ### defaultDeckWorkloadLimit - default 200
 
 This parameter may be set to an integer.
 
-If enableDeckLimits is set to true, then this parameter sets the default
-value of the option group Workload Limit parameter.
+If enableDeckLimits is true, this is the default value of the option group
+Workload Limit parameter.
 
 ### defaultDeckWorkloadMax - default 250
 
 This parameter may be set to an integer.
 
-If enableDeckLimits is set to true, then this parameter sets the default
-value of the option group Workload Max parameter.
+If enableDeckLimits is true, this is the default value of the option group
+Workload Max parameter.
 
 ### defaultDeckOverdueMax - default 20
 
 This parameter may be set to an intenger.
 
-If enableDeckLimits is set to true, then this parameter sets the default
-value of the option group Overdue Max parameter.
+If enableDeckLimits is true, this is the default value of the option group
+Overdue Max parameter.
+
+### defaultDeckMinimumNew - default 1
+
+This parameter may be set to an integer.
+
+If enableDeckLimits is true, this is the default value of the option group
+Minimum New parameter.
 
 ## Per-Deck Limits
 
 If `enableDeckLimits` is set to true, then deck options will include three
-new parameters: `Workload Limit`, `Workload Max` and `Overdue Max`. These
-values will not appear in the add-on configuration file. They only appear
-in the deck options. They work the same as the corresponding `total`
-parameters in the add-on configuration, except the workload and overdue
-cards are for the partucular deck. However, if you have nested decks, then
-the number for the parent deck include those of the sub-decks.
+new parameters: `Workload Limit`, `Workload Max`, `Overdue Max` and
+`Minimum New`. These values will not appear in the add-on configuration
+file. They only appear in the deck options. They work the same as the
+corresponding `total` parameters in the add-on configuration, except the
+workload and overdue cards are for the partucular deck. However, if you
+have nested decks, then the number for the parent deck include those of the
+sub-decks.
 
 ## Custom Study - increase today's new card limit
 
