@@ -389,6 +389,12 @@ Any other configuration parameters will be ignored.
 
 ## Change Log
 
+### 22 May 2021
+
+Fix a bug in previous release that reduced new cards to 0 in many cases.
+
+Add options to set a minimum on how low new cards will be reduced.
+
 ### 14 May 2021
 
 A new implementation that works with Anki 2.1.28 and later.
