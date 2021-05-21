@@ -227,7 +227,7 @@ where queue = {QUEUE_TYPE_REV} and due <= ? and did in """ + ids2str(dids),
                 maxNew = 0
             elif deckOverdueMax > 0:
                 ratio = overdue / deckOverdueMax
-                maxNew = min(0, min(maxNew, int(round(newPerDay * (1 - ratio)))))
+                maxNew = max(0, min(maxNew, int(round(newPerDay * (1 - ratio)))))
 
     if node and node.new_count > maxNew:
         delta = node.new_count - maxNew
