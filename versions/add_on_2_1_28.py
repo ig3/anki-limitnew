@@ -196,7 +196,7 @@ def limitDeck(deck_id, tree):
                 maxNew = totalMinimumNew
             elif totalOverdue > 0 and totalOverdueMax > 0:
                 ratio = totalOverdue / totalOverdueMax
-                maxNew = min(totalMinimumNew, min(maxNew, int(round(newPerDay * (1 - ratio)))))
+                maxNew = max(totalMinimumNew, min(maxNew, int(round(newPerDay * (1 - ratio)))))
 
     node = mw.col.decks.find_deck_in_tree(tree, deck_id)
     if enablePerDeckLimits:
@@ -248,6 +248,7 @@ where queue = {QUEUE_TYPE_REV} and due < ? and did in """ + ids2str(dids),
                 ratio = overdue / deckOverdueMax
                 maxNew = max(deckMinimumNew, min(maxNew, int(round(newPerDay * (1 - ratio)))))
 
+    print('maxNew ', maxNew, node)
     if node and node.new_count > maxNew:
         delta = node.new_count - maxNew
         print("reducing new from ", node.new_count, " to ", maxNew)
