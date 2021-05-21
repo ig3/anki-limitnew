@@ -150,7 +150,7 @@ def reviewerDidAnswerCard(reviewer, card, ease):
             overdue = mw.col.db.scalar(
                 f"""
 select count() from cards
-where queue = {QUEUE_TYPE_REV} and due <= ?""",
+where queue = {QUEUE_TYPE_REV} and due < ?""",
                 mw.col.sched.today
             )
             overdue = overdue or 0
@@ -237,7 +237,7 @@ where revlog.id > ? and cards.did in """ + ids2str(dids),
             overdue = mw.col.db.scalar(
                 f"""
 select count() from cards
-where queue = {QUEUE_TYPE_REV} and due <= ? and did in """ + ids2str(dids),
+where queue = {QUEUE_TYPE_REV} and due < ? and did in """ + ids2str(dids),
                 mw.col.sched.today
             )
             overdue = overdue or 0
@@ -278,7 +278,7 @@ def onCollectionDidLoad(col):
         overdue = mw.col.db.scalar(
             f"""
 select count() from cards
-where queue = {QUEUE_TYPE_REV} and due <= ?""",
+where queue = {QUEUE_TYPE_REV} and due < ?""",
             mw.col.sched.today
         )
         overdue = overdue or 0
