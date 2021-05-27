@@ -29,6 +29,8 @@ from aqt.qt import *
 from aqt.deckconf import DeckConf
 from aqt.forms import dconf
 
+# A flag for collection load
+collectionDidLoad = False
 # totalCount is the sum of all new and review cards due today
 # and all new and review cards studied today (including repeats)
 totalCount = 0
@@ -64,7 +66,7 @@ def setupUI(self, Dialog):
     self.workloadMax.setMaximum(9999)
 
     label5 = QLabel(self.tab)
-    label5.setText("OverdueMax")
+    label5.setText("Overdue Max")
     label6 = QLabel(self.tab)
     label6.setText("cards")
     self.overdueMax = QSpinBox(self.tab)
@@ -94,7 +96,7 @@ def setupUI(self, Dialog):
     self.gridLayout.addWidget(label6, rows+2, 2, 1, 1)
     # minimumNew
     self.gridLayout.addWidget(label7, rows+3, 0, 1, 1)
-    self.gridLayout.addWidget(self.overdueMax, rows+3, 1, 1, 1)
+    self.gridLayout.addWidget(self.minimumNew, rows+3, 1, 1, 1)
     self.gridLayout.addWidget(label8, rows+3, 2, 1, 1)
 
 
@@ -104,7 +106,7 @@ def load_conf(self):
     f.workloadLimit.setValue(c.get('workloadLimit', 200))
     f.workloadMax.setValue(c.get('workloadMax', 250))
     f.overdueMax.setValue(c.get('overdueMax', 20))
-    f.minimumNew.setValue(d.get('minimumNew', 1))
+    f.minimumNew.setValue(c.get('minimumNew', 1))
 
 
 def save_conf(self):
@@ -126,9 +128,17 @@ def initializeOptions():
 # card  <anki.cards.Card object at 0x7f5d444d2ca0> {'data': '', 'did': 1556071573193, 'due': 1620703464, 'factor': 1450, 'flags': 0, 'id': 1562347790990, 'ivl': 1, 'lapses': 3, 'lastIvl': 3, 'left': 4004, 'mod': 1620703274, 'nid': 1449636990402, 'odid': 0, 'odue': 0, 'ord': 1, 'queue': 1, 'reps': 34, 'type': 3, 'usn': -1}
 
 def reviewerDidAnswerCard(reviewer, card, ease):
+    global collectionDidLoad
     global lastDay
     global totalCount
     global totalOverdue
+    # Anki sometimes calls the reviewer_did_answer_card hook before the
+    # collection is loaded and initialization is complete. In this case
+    # just return without doing anything. Eventually, the collection should
+    # be loaded and the add-on will initialize, after which we can update
+    # when this hook function is called
+    if not collectionDidLoad:
+        return
     currentDay = mw.col.sched.today
     totalCount += 1
     deck_id = card.did
@@ -158,11 +168,11 @@ where queue = {QUEUE_TYPE_REV} and due < ?""",
             totalOverdue = overdue
 
     for did in [deck_id] + [x["id"] for x in mw.col.decks.parents(deck_id)]:
-        limitDeck(did, tree)
+        limitDeck(did)
     lastDay = currentDay
     
 
-def limitDeck(deck_id, tree):
+def limitDeck(deck_id):
     print("limitDeck ", deck_id)
     global totalCount
     global totalOverdue
@@ -198,6 +208,7 @@ def limitDeck(deck_id, tree):
                 ratio = totalOverdue / totalOverdueMax
                 maxNew = max(totalMinimumNew, min(maxNew, int(round(newPerDay * (1 - ratio)))))
 
+    tree = mw.col.sched.deck_due_tree()
     node = mw.col.decks.find_deck_in_tree(tree, deck_id)
     if enablePerDeckLimits:
         deckWorkloadLimit = conf['new'].get('workloadLimit',
@@ -251,14 +262,16 @@ where queue = {QUEUE_TYPE_REV} and due < ? and did in """ + ids2str(dids),
     print('maxNew ', maxNew, node)
     if node and node.new_count > maxNew:
         delta = node.new_count - maxNew
-        print("reducing new from ", node.new_count, " to ", maxNew)
+        print("reducing new from ", node.new_count, maxNew, delta)
         mw.col.sched.update_stats(deck_id, new_delta=delta)
 
 
 def onCollectionDidLoad(col):
+    global collectionDidLoad
     global totalCount
     global totalOverdue
     global lastDay
+    collectionDidLoad = True
     enablePerDeckLimits = config.get('enablePerDeckLimits', True)
     enableTotalLimits = config.get('enableTotalLimits', True)
 
@@ -292,7 +305,7 @@ where queue = {QUEUE_TYPE_REV} and due < ?""",
     # total studied. The totals are the sums of the per-deck totals, for top
     # level decks only.
     for x in col.decks.all_names_and_ids():
-        limitDeck(x.id, tree)
+        limitDeck(x.id)
 
     lastDay = mw.col.sched.today
     print("initialization complete")
