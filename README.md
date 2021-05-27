@@ -389,6 +389,14 @@ Any other configuration parameters will be ignored.
 
 ## Change Log
 
+### 28 May 2021
+
+Possibly fix a bug during load. Anki sometimes calls the
+reviewer_did_answer_card hook before the collection has loaded (i.e. before
+calling the collection_did_load hook. In this case, the add-on is not
+initialized and per-deck configuration is not yet available. In this case,
+return without doing anything if reviewer_did_answer_card hook is called.
+
 ### 22 May 2021
 
 Fix a bug in previous release that reduced new cards to 0 in many cases.
