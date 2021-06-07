@@ -180,6 +180,10 @@ def limitDeck(deck_id):
     enablePerDeckLimits = config.get('enablePerDeckLimits', True)
     enableTotalLimits = config.get('enableTotalLimits', True)
     conf = mw.col.decks.confForDid(deck_id)
+    if not 'new' in conf:
+        print('conf has no configuration for new!!')
+        print('conf ', conf)
+        return
     newPerDay = conf['new']['perDay']
     maxNew = newPerDay
     if enableTotalLimits:
@@ -267,6 +271,7 @@ where queue = {QUEUE_TYPE_REV} and due < ? and did in """ + ids2str(dids),
 
 
 def onCollectionDidLoad(col):
+    print('onCollectionDidLoad')
     global collectionDidLoad
     global totalCount
     global totalOverdue
