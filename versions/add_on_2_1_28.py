@@ -31,9 +31,11 @@ from aqt.forms import dconf
 
 # A flag for collection load
 collectionDidLoad = False
-# totalCount is the sum of all new and review cards due today
-# and all new and review cards studied today (including repeats)
+# totalCount is the sum of all new, learning and review cards due today
+# and all cards studied today (including repeats)
 totalCount = 0
+# totalNew is the number of new cards due today
+totalNew = 0
 # Overdue cards only change at day rollover so we keep track of the 
 # current day and check for overdue cards only if/when the day changes.
 lastDay = 1
@@ -128,9 +130,11 @@ def initializeOptions():
 # card  <anki.cards.Card object at 0x7f5d444d2ca0> {'data': '', 'did': 1556071573193, 'due': 1620703464, 'factor': 1450, 'flags': 0, 'id': 1562347790990, 'ivl': 1, 'lapses': 3, 'lastIvl': 3, 'left': 4004, 'mod': 1620703274, 'nid': 1449636990402, 'odid': 0, 'odue': 0, 'ord': 1, 'queue': 1, 'reps': 34, 'type': 3, 'usn': -1}
 
 def reviewerDidAnswerCard(reviewer, card, ease):
+    print('reviewerDidAnswerCard')
     global collectionDidLoad
     global lastDay
     global totalCount
+    global totalNew
     global totalOverdue
     # Anki sometimes calls the reviewer_did_answer_card hook before the
     # collection is loaded and initialization is complete. In this case
@@ -140,14 +144,14 @@ def reviewerDidAnswerCard(reviewer, card, ease):
     if not collectionDidLoad:
         return
     currentDay = mw.col.sched.today
-    totalCount += 1
     deck_id = card.did
     tree = mw.col.sched.deck_due_tree()
     enableTotalLimits = config.get('enableTotalLimits', True)
     if enableTotalLimits:
         # We need total workload: studied + scheduled
         # The root of the tree has scheduled cards for all decks
-        totalCount = tree.learn_count + tree.new_count + tree.review_count
+        totalCount = tree.new_count + tree.learn_count + tree.review_count
+        totalNew = tree.new_count
         # For studied cards, a database query seems to be the only way
         cardsStudied = mw.col.db.scalar(
             "select count() from revlog where id > ? ",
@@ -175,33 +179,50 @@ where queue = {QUEUE_TYPE_REV} and due < ?""",
 def limitDeck(deck_id):
     print("limitDeck ", deck_id)
     global totalCount
+    global totalNew
     global totalOverdue
     global lastDay
     enablePerDeckLimits = config.get('enablePerDeckLimits', True)
+    print('enablePerDeckLimits: ', enablePerDeckLimits)
     enableTotalLimits = config.get('enableTotalLimits', True)
+    print('enableTotalLimits: ', enableTotalLimits)
     conf = mw.col.decks.confForDid(deck_id)
     if not 'new' in conf:
         print('conf has no configuration for new!!')
         print('conf ', conf)
         return
     newPerDay = conf['new']['perDay']
+    print('newPerDay: ', newPerDay)
     maxNew = newPerDay
+    print('maxNew: ', maxNew)
     if enableTotalLimits:
+        print('total limits')
         totalWorkloadLimit = config.get('totalWorkloadLimit', 200)
+        print('totalWorkloadLimite: ', totalWorkloadLimit)
         totalWorkloadMax = config.get('totalWorkloadMax', 250)
+        print('totalWorkloadMax: ', totalWorkloadMax)
         totalOverdueMax = config.get('totalOverdueMax', 50)
+        print('totalOverdueMax: ', totalOverdueMax)
         totalMinimumNew = config.get('totalMinimumNew', 1)
+        print('totalMinimumNew: ', totalMinimumNew)
         # Check workload
+        print('totalCount: ', totalCount)
+        print('totalNew: ', totalNew)
         if totalCount > totalWorkloadMax:
-            maxNew = totalMinimumNew
+            maxNew = max(totalMinimumNew, totalWorkloadMax - totalCount + totalNew)
+            print('totalCount > totalWorkloadMax: maxNew ', maxNew)
         elif totalCount > totalWorkloadLimit:
+            print('totalCount > totalWorkloadLimit')
             excess = totalCount - totalWorkloadLimit
+            print('excess: ', excess)
             range = totalWorkloadMax - totalWorkloadLimit
+            print('range: ', range)
             if range > 0:
                 ratio = excess / range
                 maxNew = max(totalMinimumNew, min(maxNew, int(round(newPerDay * (1 - ratio)))))
             else:
                 maxNew = totalMinimumNew
+            print('maxNew: ', maxNew)
         # Check overdue once per day
         # During a day, number of overdue cards can only go down, never up
         if lastDay != mw.col.sched.today:
@@ -215,6 +236,7 @@ def limitDeck(deck_id):
     tree = mw.col.sched.deck_due_tree()
     node = mw.col.decks.find_deck_in_tree(tree, deck_id)
     if enablePerDeckLimits:
+        print('per deck limits')
         deckWorkloadLimit = conf['new'].get('workloadLimit',
                 config.get('defaultDeckWorkloadLimit', 200))
         deckWorkloadMax = conf['new'].get('workloadMax',
@@ -234,10 +256,13 @@ where revlog.id > ? and cards.did in """ + ids2str(dids),
             (mw.col.sched.dayCutoff - 86400) * 1000
         )
         workload = cardsStudied or 0
+        new = 0
         if node:
-            workload += node.learn_count + node.new_count + node.review_count
+            workload += node.new_count + node.learn_count + node.review_count
+            new = node.new_count
         if workload > deckWorkloadMax:
             maxNew = deckMinimumNew
+            maxNew = max(deckMinimumNew, deckWorkloadMax - workload + new)
         elif workload > deckWorkloadLimit:
             excess = workload - deckWorkloadLimit
             range = deckWorkloadMax - deckWorkloadLimit
@@ -263,22 +288,28 @@ where queue = {QUEUE_TYPE_REV} and due < ? and did in """ + ids2str(dids),
                 ratio = overdue / deckOverdueMax
                 maxNew = max(deckMinimumNew, min(maxNew, int(round(newPerDay * (1 - ratio)))))
 
+    newToday = mw.col.sched.counts_for_deck_today(deck_id).new or 0
+    print('newToday: ', newToday)
     print('maxNew ', maxNew, node)
     if node and node.new_count > maxNew:
-        delta = node.new_count - maxNew
+        delta = newPerDay - newToday - maxNew
         print("reducing new from ", node.new_count, maxNew, delta)
         mw.col.sched.update_stats(deck_id, new_delta=delta)
+
 
 
 def onCollectionDidLoad(col):
     print('onCollectionDidLoad')
     global collectionDidLoad
     global totalCount
+    global totalNew
     global totalOverdue
     global lastDay
     collectionDidLoad = True
     enablePerDeckLimits = config.get('enablePerDeckLimits', True)
+    print('enablePerDeckLimit: ', enablePerDeckLimits)
     enableTotalLimits = config.get('enableTotalLimits', True)
+    print('enableTotalLimits: ', enableTotalLimits)
 
     # the due tree gives us cards due today
     tree = col.sched.deck_due_tree()
@@ -286,14 +317,19 @@ def onCollectionDidLoad(col):
     if enableTotalLimits:
         # We need total workload: studied + scheduled
         # The root of the tree has scheduled cards for all decks
-        totalCount = tree.learn_count + tree.new_count + tree.review_count
+        totalCount = tree.new_count + tree.learn_count + tree.review_count
+        print('totalCount: ', totalCount)
+        totalNew = tree.new_count
+        print('totalNew: ', totalNew)
         # For studied cards, a database query seems to be the only way
         cardsStudied = mw.col.db.scalar(
             "select count() from revlog where id > ? ",
             (mw.col.sched.dayCutoff - 86400) * 1000
         )
         cardsStudied = cardsStudied or 0
+        print('cardsStudied: ', cardsStudied)
         totalCount += cardsStudied
+        print('totalCount: ', totalCount)
         overdue = mw.col.db.scalar(
             f"""
 select count() from cards
@@ -303,6 +339,7 @@ where queue = {QUEUE_TYPE_REV} and due < ?""",
         overdue = overdue or 0
         print("total overdue ", overdue)
         totalOverdue = overdue
+        print('totalOverdue: ', totalOverdue)
 
 
     # For each deck, we need the total of cards scheduled + cards studied
