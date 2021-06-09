@@ -389,6 +389,14 @@ Any other configuration parameters will be ignored.
 
 ## Change Log
 
+### 09 Jun 2021
+
+Some improvements to the calculations of workload and adjustment of new
+cards from Issue #5 with many thanks to JazzyJangles for testing and
+pointing out problems. Still not perfect but about as good as it will get
+with the limitations of Anki, and certainly better than previous. This
+still has a lot of prints for debugging.
+
 ### 28 May 2021
 
 Possibly fix a bug during load. Anki sometimes calls the
