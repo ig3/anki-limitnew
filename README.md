@@ -1,3 +1,15 @@
+Note: I have stopped using Anki. I now use
+[srf](https://github.com/ig3/srf) instead. It provides a small subset of
+Anki features but the scheduler regulates new cards automatically, to
+maintain a steady workload without constant manual adjustments, and cards
+with shorter intervals are prioritized over cards with longer intervals,
+which I find significantly enhances learning, particularly with a backlog
+(e.g. after a few days without study). As I am not using Anki, I will not
+notice if a newer version of Anki is incompatible with this plugin and will
+have little motivation to adapt the plugin. If anyone wants to continue
+development, of course you can fork this repository and I would be happy to
+give over the plugin page on ankiweb. Let me know if you are interested.
+
 # anki-limitnew
 Limit the number of new cards in Anki based on workload.
 
